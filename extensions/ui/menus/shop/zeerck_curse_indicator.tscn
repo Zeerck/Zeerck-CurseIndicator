@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://resources/fonts/actual/base/font_22.tres" type="DynamicFont" id=1]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends HBoxContainer
+
+onready var zeerck_curse_indicator_label = $ZeerckCurseIndicatorLabel
+onready var zeerck_curse_indicator_amount = $ZeerckCurseIndicatorAmount
+
+
+func set_zeerck_curse_indicator_amount(curse_amount: float)->void:
+	zeerck_curse_indicator_amount.text = str(curse_amount * 100) + \"%\"
+"
+
+[node name="ZeerckCurseIndicatorHBoxContainer" type="HBoxContainer"]
+visible = false
+margin_right = 40.0
+margin_bottom = 40.0
+rect_pivot_offset = Vector2( -320, 58 )
+script = SubResource( 1 )
+
+[node name="ZeerckCurseIndicatorLabel" type="Label" parent="."]
+margin_top = 8.0
+margin_right = 361.0
+margin_bottom = 32.0
+rect_pivot_offset = Vector2( -188, 103 )
+custom_colors/font_color = Color( 0.615686, 0, 1, 1 )
+custom_colors/font_outline_modulate = Color( 1, 1, 1, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 1 )
+custom_fonts/font = ExtResource( 1 )
+text = "ZEERCK_CURSE_INDICATOR_LABEL"
+
+[node name="ZeerckCurseIndicatorAmount" type="Label" parent="."]
+margin_left = 365.0
+margin_top = 8.0
+margin_right = 392.0
+margin_bottom = 32.0
+rect_pivot_offset = Vector2( -188, 103 )
+custom_colors/font_color = Color( 0.615686, 0, 1, 1 )
+custom_colors/font_outline_modulate = Color( 1, 1, 1, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 1 )
+custom_fonts/font = ExtResource( 1 )
+text = "0%"

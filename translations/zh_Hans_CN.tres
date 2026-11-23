@@ -1,0 +1,5 @@
+[gd_resource type="Translation" load_steps=2 format=2]
+
+[resource]
+locale = "zh_Hans_CN"
+messages = PoolStringArray( "CURSE_INDICATOR_LABEL", "诅咒", "CURSE_INDICATOR_TEXT", "{0}：{1}" )
