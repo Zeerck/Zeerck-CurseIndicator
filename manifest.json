@@ -3,7 +3,7 @@
 	"namespace": "Zeerck",
 	"version_number": "1.0.0",
 	"description": "Shows items curse percent.",
-	"website_url": "https://steamcommunity.com/id/dimasss___7/",
+	"website_url": "https://github.com/Zeerck/Zeerck-CurseIndicator",
 	"dependencies": [],
 	"extra": {
 		"godot": {
