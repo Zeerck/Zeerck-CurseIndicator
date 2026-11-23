@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Собрать архив
+        id: pack
+        run: |
+          set -euo pipefail
+
+          MOD_NAME="${GITHUB_REPOSITORY##*/}"
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          echo "Мод:    $MOD_NAME"
+          echo "Версия: $VERSION (тег $GITHUB_REF_NAME)"
+
+          SRC="."
+          if [ ! -f "manifest.json" ] && [ -d "mods-unpacked" ]; then
+            COUNT=$(find mods-unpacked -maxdepth 2 -name manifest.json | wc -l)
+            if [ "$COUNT" -eq 1 ]; then
+              SRC="$(dirname "$(find mods-unpacked -maxdepth 2 -name manifest.json)")"
+              echo "Беру готовую папку мода: $SRC"
+            fi
+          fi
+
+          if [ ! -f "$SRC/manifest.json" ]; then
+            echo "::error::manifest.json не найден ни в корне, ни в mods-unpacked/<одна папка>/"
+            echo "::error::Положи manifest.json в корень репозитория или разложи файлы в mods-unpacked/<mod>/"
+            exit 1
+          fi
+
+          MANIFEST_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("version_number",""))' "$SRC/manifest.json")"
+          echo "Версия в manifest.json: ${MANIFEST_VERSION:-<нет>}"
+          if [ -n "$MANIFEST_VERSION" ] && [ "$MANIFEST_VERSION" != "$VERSION" ]; then
+            echo "::warning::Тег $GITHUB_REF_NAME, а в manifest.json version_number=$MANIFEST_VERSION — версии расходятся"
+          fi
+
+          STAGE="$(mktemp -d)"
+          DEST="$STAGE/mods-unpacked/$MOD_NAME"
+          mkdir -p "$DEST"
+
+          tar -cf - -C "$SRC" \
+            --exclude='./.git' \
+            --exclude='./.github' \
+            --exclude='./.gitignore' \
+            --exclude='./.gitattributes' \
+            --exclude='./.vscode' \
+            --exclude='./.idea' \
+            --exclude='./node_modules' \
+            --exclude='./tools' \
+            --exclude='./docs' \
+            --exclude='*.md' \
+            --exclude='*.zip' \
+            --exclude='.DS_Store' \
+            . | tar -xf - -C "$DEST"
+
+          test -f "$DEST/manifest.json" || { echo "::error::manifest.json потерялся при упаковке"; exit 1; }
+
+          ARCHIVE="$MOD_NAME.zip"
+          ( cd "$STAGE" && zip -r -X -q "$OLDPWD/$ARCHIVE" mods-unpacked )
+
+          {
+            echo "archive=$ARCHIVE"
+            echo "mod_name=$MOD_NAME"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### $MOD_NAME $VERSION"
+            echo ""
+            echo "Архив: \`$ARCHIVE\`"
+            echo ""
+            echo '```'
+            unzip -l "$ARCHIVE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "--- содержимое $ARCHIVE ---"
+          unzip -l "$ARCHIVE"
+
+      - name: Создать релиз
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="$GITHUB_REF_NAME"                     # как тегнули: v1.2.0 или 1.2.0
+          VERSION="${{ steps.pack.outputs.version }}"
+          ARCHIVE="${{ steps.pack.outputs.archive }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ARCHIVE" --clobber
+          else
+            PREV_TAG="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
+            if [ -n "$PREV_TAG" ]; then
+              gh release create "$TAG" "$ARCHIVE" \
+                --title "$TAG" \
+                --generate-notes \
+                --notes-start-tag "$PREV_TAG"
+            else
+              gh release create "$TAG" "$ARCHIVE" \
+                --title "$TAG" \
+                --generate-notes
+            fi
+          fi
+
+          echo "Релиз $TAG: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          echo "Версия: $VERSION"
